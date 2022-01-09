@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class ComicPage extends StatefulWidget {
   final List<String> comicPages;
@@ -31,9 +30,24 @@ class _ComicPageState extends State<ComicPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         iconTheme: IconThemeData(color: Colors.black87),
-        elevation: 0.0,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                fitToHeight = !fitToHeight;
+              });
+            },
+            icon: Icon(
+              Icons.open_in_full_rounded,
+              semanticLabel: 'Enlarge comic to fullscreen',
+            ),
+          )
+        ],
       ),
       body: SafeArea(
+        top: (fitToHeight == true) ? true : false,
+        bottom: (fitToHeight == true) ? true : false,
         child: PageView(
           scrollDirection: Axis.horizontal,
           controller: controller,
@@ -48,31 +62,22 @@ class _ComicPageState extends State<ComicPage> {
                       : EdgeInsets.only(
                           bottom: 0,
                         ),
-                  child: GestureDetector(
-                    onDoubleTap: () {
-                      setState(() {
-                        fitToHeight = !fitToHeight;
-                        print('doubletap');
-                      });
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      child: InteractiveViewer(
-                        panEnabled:
-                            false, // Set it to false to prevent panning.
-                        boundaryMargin: EdgeInsets.all(0.0),
-                        minScale: 1,
-                        maxScale: 5,
-                        child: Image.memory(
-                          base64Decode(index),
-                          alignment: Alignment.center,
-                          height: double.infinity,
-                          width: double.infinity,
-                          fit: (fitToHeight == true)
-                              ? BoxFit.fitWidth
-                              : BoxFit.fitHeight,
-                        ),
+                  child: Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: InteractiveViewer(
+                      panEnabled: true, // Set it to false to prevent panning.
+                      boundaryMargin: EdgeInsets.all(0.0),
+                      minScale: 1,
+                      maxScale: 5,
+                      child: Image.memory(
+                        base64Decode(index),
+                        alignment: Alignment.center,
+                        height: double.infinity,
+                        width: double.infinity,
+                        fit: (fitToHeight == true)
+                            ? BoxFit.fitWidth
+                            : BoxFit.fitHeight,
                       ),
                     ),
                   ),
