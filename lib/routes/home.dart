@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/rendering.dart';
 import 'package:archive/archive.dart';
 import 'package:archive/archive_io.dart';
-import 'package:flutter/rendering.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:mime/mime.dart';
 import 'package:comic_bin/routes/comic.dart';
 import 'package:localstorage/localstorage.dart';
 
@@ -55,10 +56,6 @@ class _MyHomePageState extends State<MyHomePage> {
       await Future.delayed(Duration(seconds: 1));
       PlatformFile file = result.files.first;
       if (await Permission.storage.request().isGranted) {
-        await storage.ready;
-        if (storage.getItem('recentHistory') != null) {
-          recentHistory = json.decode(storage.getItem('recentHistory').toString());
-        }
         decodeFile(file);
         var insertSelectedFileMap = {
           'path': file.path.toString(),
@@ -66,10 +63,33 @@ class _MyHomePageState extends State<MyHomePage> {
           'lastPage': 0,
           'pageCount': comicPages.length,
         };
+        await storage.ready;
+        if (storage.getItem('recentHistory') != null) {
+          recentHistory = json.decode(storage.getItem('recentHistory').toString());
+          var snapshotHistory = recentHistory.toList();
+          snapshotHistory.asMap().forEach((i, value) {
+            print('here!!!');
+            if (value['path'].toString() != file.path.toString()) {
+              print('this is a new file');
+              setState(() {
+                recentHistory.add(insertSelectedFileMap);
+                storage.setItem('recentHistory', json.encode(recentHistory));
+              });
+            } else {
+              print('this file has been uploaded already');
+              print('''
+            ${value['path']} - ${file.path.toString()}
+          ''');
+            }
+          });
+        } else {
+          setState(() {
+            recentHistory.add(insertSelectedFileMap);
+            storage.setItem('recentHistory', json.encode(recentHistory));
+          });
+        }
         setState(() {
-          recentHistory.add(insertSelectedFileMap);
           selectedComic = file.path.toString();
-          storage.setItem('recentHistory', json.encode(recentHistory));
           loading = false;
         });
         Navigator.push(context,
@@ -116,13 +136,33 @@ class _MyHomePageState extends State<MyHomePage> {
 
   decodeFile(file) {
     final bytes = File(file.path.toString()).readAsBytesSync();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    for (final file in archive) {
-      if (file.isFile) {
-        final data = file.content as List<int>;
-        setState(() {
-          comicPages.add(base64Encode(data));
-        });
+    print('hereeee');
+    Archive archive = TarDecoder().decodeBytes(bytes);
+    print('hereeee2222');
+    List<String> supportedFileTypes = [
+      "image/bmp",
+      "image/gif",
+      "image/jpeg",
+      "image/pipeg",
+      "image/png",
+      "image/tiff",
+      "image/webp",
+      "application/pdf",
+      "application/x-cbr",
+      "application/vnd.comicbook+zip",
+      "application/vnd.comicbook-rar"
+    ];
+    print('starting loop');
+    for (ArchiveFile compressedFile in archive) {
+      print('checking if file');
+      if (compressedFile.isFile) {
+        print(lookupMimeType(file.path.toString()));
+        if (supportedFileTypes.contains(lookupMimeType(file.path.toString()))) {
+          final data = compressedFile.content as List<int>;
+          setState(() {
+            comicPages.add(base64Encode(data));
+          });
+        }
       }
     }
   }
@@ -162,7 +202,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: recentHistory
                       .map((item) => new Container(
                             margin: const EdgeInsets.only(
-                              bottom: 10.0,
+                              bottom: 20.0,
                             ),
                             child: Material(
                               color: Colors.transparent,
@@ -229,152 +269,151 @@ class _MyHomePageState extends State<MyHomePage> {
       extendBodyBehindAppBar: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
-        physics: ClampingScrollPhysics(),
-        child: Container(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height,
-          ),
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: SafeArea(
-            child: Stack(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(
-                    top: 30,
-                    left: 30,
-                    right: 30,
-                    bottom: 0,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.only(
-                          top: 20.0,
-                          bottom: 30.0,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                right: 15.0,
-                              ),
-                              child: Icon(
-                                Icons.auto_stories_outlined,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 60.0,
-                                semanticLabel:
-                                    'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
-                              ),
-                            ),
-                            Text(
-                              "ComicBin",
-                              style: Theme.of(context).textTheme.headline1,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(100),
+          physics: ClampingScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
+            child: SafeArea(
+              child: Stack(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(
+                      top: 30,
+                      left: 20,
+                      right: 20,
+                      bottom: 0,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.only(
+                            top: 20.0,
+                            bottom: 30.0,
                           ),
-                          height: 300,
-                          width: 300,
-                          child: Material(
-                            color: Colors.transparent,
-                            child: new InkWell(
-                              borderRadius: BorderRadius.circular(15),
-                              onTap: () {
-                                loadFile();
-                              },
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: 15.0,
+                                ),
+                                child: Icon(
+                                  Icons.auto_stories_outlined,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 60.0,
+                                  semanticLabel:
+                                      'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
+                                ),
+                              ),
+                              Text(
+                                "ComicBin",
+                                style: Theme.of(context).textTheme.headline1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            height: 300,
+                            width: 300,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: new InkWell(
+                                borderRadius: BorderRadius.circular(15),
+                                onTap: () {
+                                  loadFile();
+                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.secondary,
+                                          borderRadius: BorderRadius.circular(100)),
+                                      margin: const EdgeInsets.only(
+                                        bottom: 15.0,
+                                      ),
+                                      width: 125.0,
+                                      height: 125.0,
+                                      child: Icon(
+                                        Icons.drive_folder_upload,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 75.0,
+                                        semanticLabel:
+                                            'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 20.0,
+                                      ),
+                                      child: Text(
+                                        "Upload a comic",
+                                        style: Theme.of(context).textTheme.headline2,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf",
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context).textTheme.bodyText1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        recentFiles(),
+                      ],
+                    ),
+                  ),
+                  loading
+                      ? Positioned(
+                          top: 0.0,
+                          right: 0.0,
+                          bottom: 0.0,
+                          left: 0.0,
+                          child: Container(
+                            height: double.infinity,
+                            width: double.infinity,
+                            color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
+                            child: Center(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.secondary,
-                                        borderRadius: BorderRadius.circular(100)),
-                                    margin: const EdgeInsets.only(
-                                      bottom: 15.0,
-                                    ),
-                                    width: 125.0,
-                                    height: 125.0,
-                                    child: Icon(
-                                      Icons.drive_folder_upload,
-                                      color: Theme.of(context).colorScheme.primary,
-                                      size: 75.0,
-                                      semanticLabel:
-                                          'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 20.0,
-                                    ),
-                                    child: Text(
-                                      "Upload a comic",
-                                      style: Theme.of(context).textTheme.headline2,
-                                    ),
+                                  Icon(
+                                    Icons.auto_stories_outlined,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    size: 100.0,
+                                    semanticLabel:
+                                        'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
                                   ),
                                   Text(
-                                    "Supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf",
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context).textTheme.bodyText1,
+                                    "Loading",
+                                    style: Theme.of(context).textTheme.headline2,
                                   ),
                                 ],
                               ),
                             ),
                           ),
+                        )
+                      : Positioned(
+                          child: Container(),
                         ),
-                      ),
-                      recentFiles(),
-                    ],
-                  ),
-                ),
-                loading
-                    ? Positioned(
-                        top: 0.0,
-                        right: 0.0,
-                        bottom: 0.0,
-                        left: 0.0,
-                        child: Container(
-                          height: double.infinity,
-                          width: double.infinity,
-                          color: Theme.of(context).scaffoldBackgroundColor.withOpacity(0.9),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.auto_stories_outlined,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 100.0,
-                                  semanticLabel:
-                                      'Upload a comic (supported file types: cbr, cbz, cbt, cba, cb7, zip, 7z, rar, tar, ace, pdf)',
-                                ),
-                                Text(
-                                  "Loading",
-                                  style: Theme.of(context).textTheme.headline2,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    : Positioned(
-                        child: Container(),
-                      ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
   }
 }

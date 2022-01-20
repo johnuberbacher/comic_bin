@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:comic_bin/components/currentPage.dart';
 import 'package:localstorage/localstorage.dart';
 
@@ -17,11 +18,13 @@ class _ComicPageState extends State<ComicPage> with WidgetsBindingObserver {
   _ComicPageState(this.selectedComic, this.comicPages);
   List<String> comicPages;
   String selectedComic;
-  int lastPage = 0;
 
-  final PageController controller = PageController(viewportFraction: 1);
-  bool fitToHeight = true;
   List<dynamic> recentHistory = [];
+  int lastPage = 0;
+  bool pageSnapping = true;
+  bool scrollDirection = true;
+  bool fitToHeight = true;
+  final PageController controller = PageController(viewportFraction: 1);
 
   @override
   void initState() {
@@ -117,80 +120,89 @@ class _ComicPageState extends State<ComicPage> with WidgetsBindingObserver {
               }),
           actions: [
             Material(
-              borderRadius: BorderRadius.circular(100),
               color: Colors.transparent,
               child: IconButton(
                 onPressed: () {
-                  zoom();
+                  setState(() {
+                    pageSnapping = !pageSnapping;
+                  });
                 },
-                icon: Icon(
-                  Icons.open_in_full_rounded,
-                  semanticLabel: 'Enlarge comic to fullscreen',
-                ),
+                icon: (pageSnapping == true)
+                    ? Icon(
+                        Icons.stop_circle_outlined,
+                        semanticLabel: 'Set scrolling to snap to page',
+                      )
+                    : Icon(
+                        Icons.play_circle_outline,
+                        semanticLabel: 'Allow free scrolling',
+                      ),
+              ),
+            ),
+            Material(
+              color: Colors.transparent,
+              child: IconButton(
+                onPressed: () {
+                  setState(() {
+                    scrollDirection = !scrollDirection;
+                  });
+                },
+                icon: (scrollDirection == true)
+                    ? Icon(
+                        Icons.swap_horiz_rounded,
+                        semanticLabel: 'Scroll horizontally',
+                      )
+                    : Icon(
+                        Icons.swap_vert_rounded,
+                        semanticLabel: 'Scroll vertically',
+                      ),
               ),
             ),
           ],
         ),
         body: SafeArea(
-          top: (fitToHeight == true) ? true : true,
-          bottom: (fitToHeight == true) ? true : true,
-          child: Stack(
-            children: [
-              new PageView.builder(
-                physics: BouncingScrollPhysics(parent: ClampingScrollPhysics()),
-                scrollDirection: Axis.vertical,
-                controller: controller,
-                onPageChanged: _onPageViewChange,
-                itemCount: comicPages.length, // Can be null
-                itemBuilder: (page, index) {
-                  // index gives you current page position.
-                  return Stack(
-                    children: [
-                      Center(
-                        child: Container(
-                          padding: (fitToHeight == true)
-                              ? EdgeInsets.only(
-                                  bottom: AppBar().preferredSize.height,
-                                )
-                              : EdgeInsets.only(
-                                  bottom: 0,
-                                ),
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: GestureDetector(
-                            onDoubleTap: () {
-                              zoom();
-                            },
-                            child: Image.memory(
-                              base64Decode(comicPages[index]),
-                              alignment: Alignment.center,
-                              height: double.infinity,
-                              width: double.infinity,
-                              fit: (fitToHeight == true) ? BoxFit.fitWidth : BoxFit.fitHeight,
-                            ),
-                          ),
-                        ),
+          child: new PageView.builder(
+            physics: BouncingScrollPhysics(parent: ClampingScrollPhysics()),
+            scrollDirection: (scrollDirection == true) ? Axis.horizontal : Axis.vertical,
+            controller: controller,
+            onPageChanged: _onPageViewChange,
+            pageSnapping: (pageSnapping == true) ? true : false,
+            itemCount: comicPages.length, // Can be null
+            itemBuilder: (page, index) {
+              // index gives you current page position.
+              return Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    child: GestureDetector(
+                      onDoubleTap: () {
+                        zoom();
+                      },
+                      child: Image.memory(
+                        base64Decode(comicPages[index]),
+                        alignment: Alignment.center,
+                        height: double.infinity,
+                        fit: (fitToHeight == true) ? BoxFit.fitWidth : BoxFit.fitHeight,
                       ),
-                      Positioned(
-                        bottom: 18,
-                        right: 15,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10.0,
-                            horizontal: 12.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white70,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: CurrentPage((index + 1), comicPages),
-                        ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 18,
+                    right: 15,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10.0,
+                        horizontal: 12.5,
                       ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      decoration: BoxDecoration(
+                        color: Colors.white70,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: CurrentPage((index + 1), comicPages),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

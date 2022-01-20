@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 import 'package:comic_bin/routes/home.dart';
 
 void main() {
@@ -27,7 +28,6 @@ class MyApp extends StatelessWidget {
         ),
       ),
       darkTheme: ThemeData(
-        dividerColor: Colors.black12,
         scaffoldBackgroundColor: Colors.black,
         textTheme: const TextTheme(
           headline1: TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
