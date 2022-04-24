@@ -68,7 +68,6 @@ class _MyHomePageState extends State<MyHomePage> {
           recentHistory = json.decode(storage.getItem('recentHistory').toString());
           var snapshotHistory = recentHistory.toList();
           snapshotHistory.asMap().forEach((i, value) {
-            print('here!!!');
             if (value['path'].toString() != file.path.toString()) {
               print('this is a new file');
               setState(() {
@@ -135,34 +134,16 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   decodeFile(file) {
+    print(file.path.toString());
+    print(file.name.toString());
     final bytes = File(file.path.toString()).readAsBytesSync();
-    print('hereeee');
-    Archive archive = TarDecoder().decodeBytes(bytes);
-    print('hereeee2222');
-    List<String> supportedFileTypes = [
-      "image/bmp",
-      "image/gif",
-      "image/jpeg",
-      "image/pipeg",
-      "image/png",
-      "image/tiff",
-      "image/webp",
-      "application/pdf",
-      "application/x-cbr",
-      "application/vnd.comicbook+zip",
-      "application/vnd.comicbook-rar"
-    ];
-    print('starting loop');
-    for (ArchiveFile compressedFile in archive) {
-      print('checking if file');
-      if (compressedFile.isFile) {
-        print(lookupMimeType(file.path.toString()));
-        if (supportedFileTypes.contains(lookupMimeType(file.path.toString()))) {
-          final data = compressedFile.content as List<int>;
-          setState(() {
-            comicPages.add(base64Encode(data));
-          });
-        }
+    final archive = ZipDecoder().decodeBytes(bytes);
+    for (final file in archive) {
+      if (file.isFile) {
+        final data = file.content as List<int>;
+        setState(() {
+          comicPages.add(base64Encode(data));
+        });
       }
     }
   }
